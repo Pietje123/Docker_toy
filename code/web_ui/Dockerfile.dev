@@ -1,0 +1,13 @@
+FROM node:lts-alpine as build-stage
+ARG WORKDIR
+ENV WEB_PORT_UI=$WEB_PORT_UI
+WORKDIR /$WORKDIR
+COPY package*.json ./
+RUN npm install
+COPY ./ .
+RUN  npm run build
+ENTRYPOINT npm run dev
+
+# FROM nginx as production-stage
+# ARG WORKDIR
+# COPY --from=build-stage /$WORKDIR  /$WORKDIR

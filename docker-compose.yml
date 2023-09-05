@@ -1,0 +1,73 @@
+services:
+  db:
+    container_name: $DB_NAME
+    image: mysql
+    command: --default-authentication-plugin=caching_sha2_password
+    restart: unless-stopped
+    env_file:
+      - ./.env
+      - ./code/db/.env
+    healthcheck:
+      test: ["CMD-SHELL", "mysql --host=$$DB_HOST --user=$$MYSQL_USER --password=$$MYSQL_PASSWORD" ]
+      interval: 1s
+      timeout: 5s
+      retries: 10
+
+    volumes:
+      - ~/app_db:/var/lib/mysql:rw
+      - ./code/db/sql/:/docker-entrypoint-initdb.d/:ro
+
+  backend:
+    container_name: $BACKEND_NAME
+    build: 
+      context: ./code/server
+      dockerfile: Dockerfile.dev
+      args:
+      - username=$USER
+    depends_on:
+      db:
+        condition: service_healthy  
+    volumes:
+      # - ./code/server/app.py:/home/$USER/app.py:ro
+      - ./code/server/:/home/$USER/:rw
+    links:
+      - db:db
+    env_file:
+      - ./.env
+      - ./code/server/.env
+
+  router:
+    container_name: $ROUTER_NAME
+    build: 
+      context: ./code/router
+      dockerfile: Dockerfile.dev
+    depends_on:
+      - backend
+      - frontend
+    ports:
+      - "3000:$NGINX_PORT"
+    volumes:
+      - ./code/router/templates:/etc/nginx/templates:ro
+    restart: always
+    env_file:
+      - ./.env
+
+  frontend:
+    container_name: $FRONTEND_NAME
+    build: 
+      context: ./code/web_ui
+      dockerfile: Dockerfile.dev
+      args:
+        - WEB_UI_PORT=$WEB_UI_PORT
+        - WORKDIR=$FRONTEND_WORKING_DIR
+    volumes:
+      - ./code/web_ui:/$FRONTEND_WORKING_DIR:rw
+      - /$FRONTEND_WORKING_DIR/dist/
+      - /$FRONTEND_WORKING_DIR/node_modules/
+    env_file:
+      - ./.env
+      - ./code/web_ui/.env
+      
+volumes:
+  app_db:
+    external: true

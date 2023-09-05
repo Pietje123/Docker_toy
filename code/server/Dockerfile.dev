@@ -1,0 +1,15 @@
+FROM python:bullseye
+ARG username
+
+COPY requirements.txt .
+RUN pip install -U -r requirements.txt \
+&& rm requirements.txt
+RUN apt-get update \ 
+&& apt-get install vim -y
+
+RUN useradd -m $username
+WORKDIR /home/$username/
+USER $username
+
+
+CMD ["python3", "app.py"]
